@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="description" content="Create and share simple digital bills and documents with eParchi.">
+  <title>eParchi — Digital bills, made simple</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="eParchi home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M6.5 3.75h7.2l4.8 4.8v11.7H6.5a2 2 0 0 1-2-2v-12.5a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M13.5 4v5h5M8 13h8M8 16.5h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        <span class="brand-copy"><strong>eParchi</strong><small>Digital bills, made simple</small></span>
+      </a>
+      <div class="workspace-user">
+        <div class="workspace-identity"><strong id="headerBusinessName">Your business</strong><span id="workspaceUser"></span></div>
+        <span id="roleBadge" class="role-badge">Staff</span>
+        <button id="logoutButton" type="button">Log out</button>
+      </div>
+    </header>
+
+    <main>
+      <section id="dashboardView" class="view dashboard-view">
+        <div class="page-heading">
+          <div><p class="eyebrow">YOUR BUSINESS, AT A GLANCE</p><h1>Dashboard & <span>inventory</span></h1><p class="heading-copy">Track today’s activity and keep your services and stock up to date.</p></div>
+        </div>
+        <div id="dashboardNotice" class="notice" role="status" aria-live="polite" hidden></div>
+        <div class="dashboard-stats">
+          <article class="stat-card revenue-stat"><span class="stat-icon">₹</span><div><span>Today’s revenue</span><strong id="todayRevenue">₹0.00</strong><small>Based on Parchis created today</small></div></article>
+          <article class="stat-card"><span class="stat-icon">▤</span><div><span>Total Parchis</span><strong id="totalParchis">0</strong><small>For this business</small></div></article>
+          <article class="stat-card low-stock-stat"><span class="stat-icon">!</span><div><span>Low stock alerts</span><strong id="lowStockCount">0</strong><small>At or below 5 units</small></div></article>
+        </div>
+        <section id="lowStockPanel" class="low-stock-panel" hidden>
+          <div class="section-title"><div><h2>Needs attention</h2><p>Items at or below their low-stock threshold.</p></div><span class="alert-pill">Low stock</span></div>
+          <div id="lowStockList" class="low-stock-list"></div>
+        </section>
+        <section class="inventory-manager">
+          <div class="section-title"><div><p class="eyebrow">PRODUCTS & SERVICES</p><h2>Inventory manager</h2><p>Add or update items used on your eParchis.</p></div><span id="inventoryCount" class="count-pill">0 items</span></div>
+          <div id="inventoryNotice" class="notice" role="status" aria-live="polite" hidden></div>
+          <form id="inventoryForm" class="form-card inventory-form">
+            <div class="inventory-fields">
+              <label class="field">Name<input name="name" maxlength="160" placeholder="Mobile phone, consultation, course..." required></label>
+              <label class="field">Code / SKU<input name="skuOrCode" maxlength="100" placeholder="IMEI, course code (optional)"></label>
+              <label class="field">Category<input name="category" maxlength="100" placeholder="Phones, lab tests, batches..."></label>
+              <label class="field">Stock quantity<input name="stockQty" type="number" min="0" step="any" value="0" required></label>
+              <label class="field">Unit price (₹)<input name="unitPrice" type="number" min="0" step="any" placeholder="0.00" required></label>
+              <label class="field inventory-meta-field">Details <small>Optional</small><input name="details" maxlength="500" placeholder="Model, batch, or service details"></label>
+            </div>
+            <div class="inventory-form-actions">
+              <label class="track-stock-control"><input name="trackStock" type="checkbox" checked><span>Track stock and deduct it when billed</span></label>
+              <button class="button button-primary inventory-submit" type="submit">＋ Add item</button>
+            </div>
+          </form>
+          <label class="search-field inventory-search"><span aria-hidden="true">⌕</span><input id="inventorySearch" type="search" placeholder="Search inventory by name, code, or category" aria-label="Search inventory"></label>
+          <div id="inventoryList" class="inventory-list"></div>
+          <div id="emptyInventory" class="empty-state"><div class="empty-icon" aria-hidden="true">▤</div><h3 id="emptyInventoryTitle">No inventory items yet</h3><p id="emptyInventoryCopy">Add your first product or service above.</p></div>
+        </section>
+      </section>
+
+      <section id="createView" class="view" hidden>
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow">CREATE A BILL</p>
+            <h1>New <span>eParchi</span></h1>
+            <p class="heading-copy">Your business details are linked to your workspace.</p>
+          </div>
+        </div>
+
+        <div id="appNotice" class="notice" role="status" aria-live="polite" hidden></div>
+
+        <form id="parchiForm" novalidate>
+          <section class="form-card locked-business-card">
+            <div class="card-heading"><span class="section-icon vendor-icon" aria-hidden="true">01</span><div><h2>Your business</h2><p>Automatically added from your tenant profile.</p></div></div>
+            <div class="field-grid">
+              <label class="field"><span>Business name <span class="lock-tag">🔒 Locked</span></span><input name="businessName" autocomplete="organization" disabled></label>
+              <label class="field"><span>Business phone <span class="lock-tag">🔒 Locked</span></span><input name="businessMobile" disabled></label>
+              <label class="field"><span><span id="registrationLabel">Reg. / GST No.</span> <span class="lock-tag">🔒 Locked</span></span><input name="registration" disabled></label>
+              <label class="field"><span>UPI ID <span class="lock-tag">🔒 Locked</span></span><input name="upiId" disabled></label>
+              <label class="field field-wide"><span>Business address <span class="lock-tag">🔒 Locked</span></span><input name="businessAddress" disabled></label>
+            </div>
+            <a class="settings-link owner-only" href="#settingsView" data-open-view="settingsView" hidden>Edit in Settings →</a>
+          </section>
+
+          <section class="form-card">
+            <div class="card-heading">
+              <span class="section-icon client-icon" aria-hidden="true">02</span>
+              <div><h2 id="clientSectionTitle">Customer details</h2><p>Who is this eParchi for?</p></div>
+            </div>
+            <div class="field-grid">
+              <label class="field">
+                <span id="clientNameLabel">Customer name <b>*</b></span>
+                <input name="clientName" autocomplete="name" placeholder="Enter full name" required>
+              </label>
+              <label class="field">
+                <span>WhatsApp mobile <b>*</b></span>
+                <div class="phone-input"><span>+91</span><input name="clientMobile" inputmode="numeric" autocomplete="tel-national" maxlength="10" placeholder="10-digit number" required></div>
+              </label>
+              <div id="dynamicFields" class="dynamic-fields field-wide"></div>
+              <label class="field field-wide">
+                <span>Payment mode <b>*</b></span>
+                <select name="paymentMode" required>
+                  <option value="UPI / QR">UPI / QR</option>
+                  <option value="Cash">Cash</option>
+                  <option value="Card">Card</option>
+                  <option value="Pending / Udhaar">Pending / Udhaar</option>
+                </select>
+              </label>
+            </div>
+          </section>
+
+          <section class="form-card items-card">
+            <div class="card-heading items-heading">
+              <span class="section-icon item-icon" aria-hidden="true">03</span>
+              <div><h2>Items & total</h2><p>Add products, services, or fees to this bill.</p></div>
+              <button id="addItemButton" class="button button-outline add-item" type="button"><span aria-hidden="true">＋</span> Add item</button>
+            </div>
+            <div class="items-labels" aria-hidden="true"><span>Description</span><span>Qty</span><span>Rate (₹)</span><span></span></div>
+            <div id="lineItems" class="line-items"></div>
+            <div class="totals-wrap">
+              <label class="discount-field field">
+                <span>Discount <small>Optional</small></span>
+                <div class="money-input"><span>₹</span><input name="discount" type="number" inputmode="decimal" min="0" step="0.01" value="0" aria-label="Discount in rupees"></div>
+              </label>
+              <div class="totals">
+                <div><span>Subtotal</span><strong id="subtotalAmount">₹0.00</strong></div>
+                <div class="grand-total"><span>Grand total</span><strong id="grandTotalAmount">₹0.00</strong></div>
+              </div>
+            </div>
+            <button class="button button-primary create-button" type="submit"><span>Create eParchi</span><span aria-hidden="true">→</span></button>
+            <p class="privacy-note"><span aria-hidden="true">▣</span> Your eParchi is securely saved to your business workspace.</p>
+          </section>
+        </form>
+
+        <section id="receiptPage" class="receipt-page" hidden>
+          <div class="receipt-toolbar">
+            <div><p class="eyebrow">READY TO SHARE</p><h2>Your eParchi is ready</h2></div>
+            <button id="editBillButton" class="button button-quiet" type="button">← Edit bill</button>
+          </div>
+          <article id="receipt" class="receipt">
+            <div class="receipt-topline"><span id="receiptBrandFallback" class="receipt-brand-mark">e</span><img id="receiptLogo" class="receipt-logo" alt="Business logo" hidden><span>eParchi</span><span class="receipt-status"><i></i> BUSINESS RECEIPT</span></div>
+            <div class="receipt-header">
+              <div><p class="receipt-kicker" id="receiptModeLabel">GENERAL SHOP</p><h2 id="receiptBusinessName">Business name</h2><p id="receiptBusinessAddress" class="receipt-muted"></p><p id="receiptRegistration" class="receipt-muted"></p><p id="receiptBusinessMobile" class="receipt-muted"></p></div>
+              <div class="receipt-id-block"><span>PARCHI ID</span><strong id="receiptId">EP-2026-0000</strong><small id="receiptDate"></small></div>
+            </div>
+            <div class="receipt-rule"></div>
+            <div class="receipt-parties">
+              <div><span class="receipt-label" id="receiptClientLabel">BILLED TO</span><strong id="receiptClientName">Customer name</strong><span id="receiptClientMobile" class="receipt-muted"></span><div id="receiptExtra" class="receipt-extra"></div></div>
+              <div class="receipt-payment"><span class="receipt-label">PAYMENT</span><strong id="receiptPayment">UPI / QR</strong></div>
+            </div>
+            <div class="receipt-table-wrap">
+              <table class="receipt-table">
+                <thead><tr><th>DESCRIPTION</th><th>QTY</th><th>RATE</th><th>AMOUNT</th></tr></thead>
+                <tbody id="receiptItems"></tbody>
+              </table>
+            </div>
+            <div class="receipt-calculation">
+              <div><span>Subtotal</span><strong id="receiptSubtotal">₹0.00</strong></div>
+              <div id="receiptDiscountRow" hidden><span>Discount</span><strong id="receiptDiscount">− ₹0.00</strong></div>
+              <div class="receipt-grand-total"><span>Grand total</span><strong id="receiptTotal">₹0.00</strong></div>
+            </div>
+            <div class="receipt-proof-row">
+              <div id="qrSection" class="qr-section" hidden>
+                <div><span class="receipt-label">SCAN TO PAY</span><p>Pay securely with any UPI app</p><strong id="qrPayAmount">₹0.00</strong><span id="qrUpiLabel" class="receipt-muted"></span></div>
+                <div id="qrCode" class="qr-code" aria-label="UPI payment QR code"></div>
+              </div>
+              <div class="authorized-block">
+                <div class="authorization-marks"><img id="receiptSignature" alt="Authorized digital signature" hidden><img id="receiptStamp" alt="Official business stamp" hidden></div>
+                <strong>Authorized Signatory</strong>
+              </div>
+            </div>
+            <div class="receipt-footer"><span>Thank you for choosing us.</span><span>Created with <strong>eParchi</strong></span></div>
+          </article>
+          <div class="receipt-actions">
+            <button id="shareButton" class="button button-whatsapp" type="button"><span aria-hidden="true">↗</span> Share on WhatsApp</button>
+            <button id="printButton" class="button button-outline" type="button"><span aria-hidden="true">▣</span> Print / Save PDF</button>
+            <button id="newParchiButton" class="button button-primary" type="button"><span aria-hidden="true">＋</span> New Parchi</button>
+          </div>
+        </section>
+      </section>
+
+      <section id="historyView" class="view history-view" hidden>
+        <div class="page-heading">
+          <div><p class="eyebrow">YOUR BUSINESS, AT A GLANCE</p><h1>Parchi history <span>& clients</span></h1><p class="heading-copy">Find a previous bill or start one for a returning client.</p></div>
+          <button id="historyCreateButton" class="button button-primary history-create" type="button">＋ Create Parchi</button>
+        </div>
+        <div class="summary-card">
+          <div class="summary-icon" aria-hidden="true">₹</div>
+          <div><span>Total billed</span><strong id="revenueAmount">₹0.00</strong><small>Across this business workspace</small></div>
+          <div class="summary-count"><strong id="billCount">0</strong><span>eParchis created</span></div>
+        </div>
+        <label class="search-field"><span aria-hidden="true">⌕</span><input id="historySearch" type="search" placeholder="Search by client, mobile, or Parchi ID" aria-label="Search clients and bills"><kbd>/</kbd></label>
+        <div class="history-list-heading"><h2>Recent eParchis</h2><span id="historyCountLabel">0 bills</span></div>
+        <div id="historyList" class="history-list"></div>
+        <div id="emptyHistory" class="empty-state" hidden><div class="empty-icon" aria-hidden="true">▤</div><h3>No eParchis yet</h3><p>Your created bills and clients will appear here.</p><button id="emptyCreateButton" class="button button-outline" type="button">Create your first eParchi</button></div>
+        <div id="noSearchResults" class="empty-state compact-empty" hidden><h3>No matching eParchis</h3><p>Try a different name, number, or Parchi ID.</p></div>
+      </section>
+
+      <section id="settingsView" class="view" hidden>
+        <div class="page-heading">
+          <div><p class="eyebrow">YOUR WORKSPACE PROFILE</p><h1>Business <span>settings</span></h1><p class="heading-copy">Owners can update business details and branding. Staff can view them.</p></div>
+        </div>
+        <div id="settingsNotice" class="notice" role="status" aria-live="polite" hidden></div>
+        <form id="settingsForm" class="form-card settings-form">
+          <div class="card-heading"><span class="section-icon vendor-icon" aria-hidden="true">01</span><div><h2>Business profile</h2><p>These details appear on every eParchi.</p></div></div>
+          <div class="field-grid">
+            <label class="field">Business name<input name="businessName" autocomplete="organization" maxlength="120" required></label>
+            <label class="field">Business phone<input name="phone" type="tel" autocomplete="tel" maxlength="30" required></label>
+            <label class="field">Registration number<input name="regNumber" maxlength="100"></label>
+            <label class="field">UPI ID<input name="upiId" maxlength="100"></label>
+            <label class="field field-wide">Business address<input name="address" autocomplete="street-address" maxlength="300"></label>
+          </div>
+          <details class="branding-settings" open>
+            <summary>Brand assets & receipt appearance</summary>
+            <div class="asset-grid">
+              <div class="asset-field">
+                <label class="field" for="logoUrl">Business logo</label>
+                <input id="logoUrl" name="logoUrl" class="asset-text-input" type="text" placeholder="Paste an HTTPS URL, data image, or image">
+                <label class="file-picker">Upload logo<input type="file" data-brand-file="logoUrl" accept="image/png,image/jpeg,image/webp"></label>
+                <img id="logoPreview" class="asset-preview" alt="Business logo preview" hidden>
+              </div>
+              <div class="asset-field">
+                <label class="field" for="signatureUrl">Authorized e-signature</label>
+                <input id="signatureUrl" name="signatureUrl" class="asset-text-input" type="text" placeholder="Paste an HTTPS URL, data image, or image">
+                <label class="file-picker">Upload signature<input type="file" data-brand-file="signatureUrl" accept="image/png,image/jpeg,image/webp"></label>
+                <div id="signaturePadWrap" class="signature-pad-wrap">
+                  <span class="field-label">Or draw your signature</span>
+                  <canvas id="signatureCanvas" width="640" height="180" aria-label="Draw authorized signature here"></canvas>
+                  <button id="clearSignatureButton" class="button button-quiet" type="button">Clear signature</button>
+                </div>
+                <img id="signaturePreview" class="asset-preview signature-preview" alt="Authorized signature preview" hidden>
+              </div>
+              <div class="asset-field stamp-asset-field">
+                <label class="field" for="stampUrl">Official stamp / seal</label>
+                <input id="stampUrl" name="stampUrl" class="asset-text-input" type="text" placeholder="Paste an HTTPS URL, data image, or image">
+                <label class="file-picker">Upload stamp<input type="file" data-brand-file="stampUrl" accept="image/png,image/jpeg,image/webp"></label>
+                <div class="stamp-generator">
+                  <span class="field-label">Auto-generate using your business name & city</span>
+                  <div><button id="generateRoundStamp" class="button button-outline" type="button">Generate round stamp</button><button id="generateRectStamp" class="button button-outline" type="button">Generate rectangular stamp</button></div>
+                </div>
+                <img id="stampPreview" class="asset-preview stamp-preview" alt="Official stamp preview" hidden>
+              </div>
+              <label class="field">Custom watermark text<input name="watermarkText" maxlength="100" placeholder="e.g. VERIFIED ORIGINAL"></label>
+              <label class="field">Theme color<input name="themeColor" type="color" value="#0f766e"></label>
+            </div>
+          </details>
+          <button id="saveSettingsButton" class="button button-primary inventory-submit owner-only" type="submit" hidden>Save settings</button>
+          <p id="staffSettingsNote" class="save-hint" hidden>Settings are read-only for your staff account.</p>
+        </form>
+        <section id="teamManager" class="form-card team-manager owner-only" hidden>
+          <div class="card-heading"><span class="section-icon client-icon" aria-hidden="true">02</span><div><h2>Team members</h2><p>Staff can manage inventory and create eParchis.</p></div></div>
+          <form id="staffForm" class="staff-form">
+            <div class="inventory-fields">
+              <label class="field">Name<input name="name" maxlength="100" autocomplete="name" required></label>
+              <label class="field">Email<input name="email" type="email" autocomplete="email" required></label>
+              <label class="field">Temporary password<input name="password" type="password" minlength="8" maxlength="128" required></label>
+            </div>
+            <button class="button button-primary inventory-submit" type="submit">Add staff member</button>
+          </form>
+          <div id="staffNotice" class="notice" role="status" aria-live="polite" hidden></div>
+          <div id="staffList" class="inventory-list"></div>
+        </section>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Main navigation">
+      <button class="nav-tab is-active" type="button" data-view="dashboardView" aria-current="page"><span class="nav-icon" aria-hidden="true">⌂</span><span>Dashboard & Inventory</span></button>
+      <button class="nav-tab" type="button" data-view="createView"><span class="nav-icon" aria-hidden="true">＋</span><span>Create eParchi</span></button>
+      <button class="nav-tab" type="button" data-view="historyView"><span class="nav-icon nav-history-icon" aria-hidden="true">▤</span><span>Parchi History & Clients</span></button>
+      <button class="nav-tab" type="button" data-view="settingsView"><span class="nav-icon" aria-hidden="true">⚙</span><span>Settings</span></button>
+    </nav>
+  </div>
+</body>
+</html>
