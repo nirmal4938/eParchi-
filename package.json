@@ -16,6 +16,7 @@
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.9.5",
+    "pdfkit": "^0.21.0",
     "typescript": "^7.0.2"
   }
 }
