@@ -3,7 +3,10 @@ const crypto = require("crypto");
 const Parchi = require("../models/Parchi");
 const Tenant = require("../models/Tenant");
 const { authenticate } = require("../middleware/auth");
-const { generateInvoiceBuffer } = require("../utils/generateInvoicePdf");
+const {
+  default: generateInvoiceBuffer,
+} = require("../utils/generateInvoicePdf");
+// const { generateInvoiceBuffer } = require("../utils/generateInvoicePdf");
 
 const router = express.Router();
 
@@ -142,7 +145,7 @@ router.post(
 // });
 
 router.post("/send", authenticate, async (req, res, next) => {
-  const { parchiId, phone } = req.body;
+  const { parchiId, phone, useTemplate } = req.body;
   if (!parchiId) {
     return res.status(400).json({ error: "Parchi ID is required." });
   }
@@ -207,59 +210,65 @@ router.post("/send", authenticate, async (req, res, next) => {
       });
     }
 
-    // 2. Send Template Message with the Uploaded PDF Header (Works 24/7, avoids 131047)
+    // 2. Build Message Payload
+    // Pass { "useTemplate": false } in request body to test directly within 24h window while template is in review
+    const isTemplateReady = useTemplate !== false;
     const formattedRecipient = `91${targetPhone}`;
-    const payload = {
-      messaging_product: "whatsapp",
-      recipient_type: "individual",
-      to: formattedRecipient,
-      type: "template",
-      template: {
-        name: "invoice_receipt", // <-- Replace with your approved template name
-        language: { code: "en" },
-        components: [
-          {
-            type: "header",
-            parameters: [
+
+    const payload = isTemplateReady
+      ? {
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to: formattedRecipient,
+          type: "template",
+          template: {
+            name: "invoice_receipt",
+            language: { code: "en" },
+            components: [
               {
-                type: "document",
-                document: {
-                  id: uploadData.id,
-                  filename: fileName,
-                },
+                type: "header",
+                parameters: [
+                  {
+                    type: "document",
+                    document: {
+                      id: uploadData.id,
+                      filename: fileName,
+                    },
+                  },
+                ],
+              },
+              {
+                type: "body",
+                parameters: [
+                  {
+                    type: "text",
+                    text: String(parchi.clientName || "Customer"),
+                  },
+                  { type: "text", text: String(parchi.parchiNumber) },
+                  {
+                    type: "text",
+                    text: String(tenant?.businessName || "Our Store"),
+                  },
+                  { type: "text", text: parchi.grandTotal.toFixed(2) },
+                  { type: "text", text: String(parchi.paymentMode || "Cash") },
+                ],
               },
             ],
           },
-          {
-            type: "body",
-            parameters: [
-              { type: "text", text: parchi.clientName },
-              { type: "text", text: parchi.parchiNumber },
-              { type: "text", text: tenant.businessName || "Our Store" },
-              { type: "text", text: parchi.grandTotal.toFixed(2) },
-              { type: "text", text: parchi.paymentMode },
-            ],
+        }
+      : {
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to: formattedRecipient,
+          type: "document",
+          document: {
+            id: uploadData.id,
+            filename: fileName,
+            caption: `Hello ${parchi.clientName}, here is your bill #${parchi.parchiNumber} for Rs. ${parchi.grandTotal.toFixed(2)}.`,
           },
-        ],
-      },
-    };
+        };
 
-    /* 
-    // NOTE: If you ONLY want to test right now WITHOUT creating a template 
-    // (after replying "Hi" to the test number on your phone), use this payload instead:
-    const payload = {
-      messaging_product: "whatsapp",
-      recipient_type: "individual",
-      to: formattedRecipient,
-      type: "document",
-      document: {
-        id: uploadData.id,
-        filename: fileName,
-        caption: `Hello ${parchi.clientName}, here is your bill #${parchi.parchiNumber} for Rs. ${parchi.grandTotal.toFixed(2)}.`,
-      },
-    };
-    */
-
+    // 3. Send Message via WhatsApp Cloud API
     const response = await fetch(
       `https://facebook.com{phoneNumberId}/messages`,
       {
@@ -288,6 +297,34 @@ router.post("/send", authenticate, async (req, res, next) => {
       messageId: result.messages?.[0]?.id || null,
       recipient: formattedRecipient,
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /preview/:parchiId - Preview invoice PDF directly in browser
+router.get("/preview/:parchiId", authenticate, async (req, res, next) => {
+  try {
+    const parchi = await Parchi.findOne({
+      _id: req.params.parchiId,
+      tenantId: req.tenantId,
+    }).lean();
+
+    if (!parchi) {
+      return res
+        .status(404)
+        .json({ error: "Bill not found in this business." });
+    }
+
+    const tenant = await Tenant.findById(req.tenantId).lean();
+    const pdfBuffer = await generateInvoiceBuffer(parchi, tenant);
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="Invoice_${parchi.parchiNumber}.pdf"`,
+    );
+    res.send(pdfBuffer);
   } catch (error) {
     next(error);
   }

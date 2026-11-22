@@ -17,6 +17,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.9.5",
     "pdfkit": "^0.21.0",
+    "qrcode": "^1.5.4",
     "typescript": "^7.0.2"
   }
 }
