@@ -11,6 +11,7 @@ const tenantRoutes = require("./routes/tenant");
 const inventoryRoutes = require("./routes/inventory");
 const parchiRoutes = require("./routes/parchis");
 const dashboardRoutes = require("./routes/dashboard");
+const whatsappRoutes = require("./routes/whatsapp");
 
 const app = express();
 const port = Number(process.env.PORT) || 3000;
@@ -42,6 +43,7 @@ app.use("/api/tenant", tenantRoutes);
 app.use("/api/inventory", inventoryRoutes);
 app.use("/api/parchis", parchiRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/whatsapp", whatsappRoutes);
 app.use("/api", (req, res) => res.status(404).json({ error: "API endpoint not found." }));
 app.use(express.static(path.join(__dirname, "public"), { extensions: ["html"] }));
 

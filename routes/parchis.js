@@ -10,12 +10,39 @@ router.use(authenticate);
 
 router.get("/", async (req, res, next) => {
   try {
-    const parchis = await Parchi.find({ tenantId: req.tenantId })
+    const filter = { tenantId: req.tenantId };
+    if (req.query.search) {
+      const term = String(req.query.search).trim();
+      const regex = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+      filter.$or = [
+        { clientName: regex },
+        { clientPhone: regex },
+        { parchiNumber: regex }
+      ];
+    }
+    const limit = Math.min(Number(req.query.limit) || 500, 500);
+    const page = Math.max(Number(req.query.page) || 1, 1);
+    const skip = req.query.page ? (page - 1) * limit : 0;
+
+    const parchis = await Parchi.find(filter)
       .sort({ createdAt: -1 })
-      .limit(500)
+      .skip(skip)
+      .limit(limit)
       .lean();
     res.json({ parchis });
   } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/:id", async (req, res, next) => {
+  console.log("server to get parchis by id", req.tenantId);
+  try {
+    const parchi = await Parchi.findOne({ _id: req.params.id, tenantId: req.tenantId }).lean();
+    if (!parchi) return res.status(404).json({ error: "Bill not found in this business." });
+    res.json({ parchi });
+  } catch (error) {
+    if (error.name === "CastError") return res.status(400).json({ error: "Invalid bill ID." });
     next(error);
   }
 });

@@ -35,6 +35,7 @@ function issueSession(user, res) {
     { expiresIn: "7d" }
   );
   res.cookie("eparchi_session", token, cookieOptions);
+  return token;
 }
 
 function safeUser(user) {
@@ -73,8 +74,8 @@ router.post("/register-tenant", async (req, res, next) => {
       passwordHash,
       role: "owner"
     });
-    issueSession(user, res);
-    res.status(201).json({ user: safeUser(user), tenant });
+    const token = issueSession(user, res);
+    res.status(201).json({ token, user: safeUser(user), tenant });
   } catch (error) {
     if (tenant) {
       try {
@@ -101,8 +102,8 @@ router.post("/login", async (req, res, next) => {
     if (!valid) return res.status(401).json({ error: "Email or password is incorrect." });
     const tenant = await Tenant.findById(user.tenantId);
     if (!tenant) return res.status(401).json({ error: "This business account is unavailable." });
-    issueSession(user, res);
-    res.json({ user: safeUser(user), tenant });
+    const token = issueSession(user, res);
+    res.json({ token, user: safeUser(user), tenant });
   } catch (error) {
     next(error);
   }
@@ -189,8 +190,8 @@ router.post("/demo", async (req, res, next) => {
       }
     }
 
-    issueSession(user, res);
-    res.json({ user: safeUser(user), tenant, demo: true });
+    const token = issueSession(user, res);
+    res.json({ token, user: safeUser(user), tenant, demo: true });
   } catch (error) {
     next(error);
   }
