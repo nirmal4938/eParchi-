@@ -195,7 +195,8 @@ router.post("/send", authenticate, async (req, res, next) => {
 
   //   const baseUrl = `https://facebook.com${apiVersion}/${phoneNumberId}`;
   // const baseUrl = "https://facebook.com" + apiVersion + "/" + phoneNumberId;
-  const baseUrl = "https://facebook.com" + apiVersion + "/" + phoneNumberId;
+  const baseUrl =
+    "https://graph." + "facebook.com" + "/" + apiVersion + "/" + phoneNumberId;
 
   try {
     // 2. Fetch Bill & Tenant Data
